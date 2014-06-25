@@ -28,10 +28,6 @@
 namespace hpp {
   namespace core {
     /// Abstraction of paths: mapping from time to configuration space
-    ///
-    /// This class derives from roboptim::Trajectory as such Path could be
-    /// used for numerical optimization. For that some unimplemented methods
-    /// should be implemented.
     class HPP_CORE_DLLAPI Path
     {
     public:
