@@ -129,11 +129,9 @@ namespace hpp {
 				       const ConfigurationPtr_t& to,
 				       const PathPtr_t path)
     {
-      interval_t timeRange = path->timeRange ();
       NodePtr_t nodeTo = addNode (to, from->connectedComponent ());
       addEdge (from, nodeTo, path);
-      addEdge (nodeTo, from, path->extract
-	       (interval_t (timeRange.second, timeRange.first)));
+      addEdge (nodeTo, from, path->reverse ());
       return nodeTo;
     }
 
@@ -195,20 +193,10 @@ namespace hpp {
       // If node connected components are different, merge them
       ConnectedComponentPtr_t cc1 = n1->connectedComponent ();
       ConnectedComponentPtr_t cc2 = n2->connectedComponent ();
+      
       if (cc1 != cc2) {
-	cc1->merge (cc2);
-	//nearestNeighbor_ [cc1]->merge (nearestNeighbor_ [cc2]);
-	kdTree_.merge(cc1, cc2);
-	// Remove cc2 from list of connected components
-	ConnectedComponents_t::iterator itcc =
-	  std::find (connectedComponents_.begin (), connectedComponents_.end (),
-		     cc2);
-	assert (itcc != connectedComponents_.end ());
-	connectedComponents_.erase (itcc);
-	// remove cc2 from map of nearest neighbors
-	//NearetNeighborMap_t::iterator itnear = nearestNeighbor_.find (cc2);
-	//assert (itnear != nearestNeighbor_.end ());
-	//nearestNeighbor_.erase (itnear);
+          //Check and update reachability of the connected components
+          updateCCReachability(cc1,cc2);
       }
       return edge;
     }
@@ -222,6 +210,149 @@ namespace hpp {
       //nearestNeighbor_ [node->connectedComponent ()]->add (node);
       kdTree_.addNode(node);
     }
-
+    void Roadmap::updateCCReachability(const ConnectedComponentPtr_t& cc1,
+            const ConnectedComponentPtr_t& cc2)
+    {
+        ConnectedComponents_t::iterator itcc1 = 
+            std::find (cc1->reachableTo_.begin(),cc1->reachableTo_.end(),
+                    cc2);
+        ConnectedComponents_t::iterator itcc2 = 
+            std::find (cc2->reachableTo_.begin(),cc2->reachableTo_.end(),
+                    cc1);
+        bool cc1Tocc2 = (itcc1 != cc1->reachableTo_.end())?
+            true:false;
+        bool cc2Tocc1 = (itcc2 != cc2->reachableTo_.end())?
+            true:false;
+        //If both components are reachable to each other, merge them
+        if (cc1Tocc2 && cc2Tocc1) {
+            cc1->merge (cc2);
+            //Merge the connected components in kdTree
+            kdTree_.merge(cc1, cc2);
+            // Remove cc2 from list of connected components
+            ConnectedComponents_t::iterator itcc =
+                std::find (connectedComponents_.begin (), connectedComponents_.end (),
+                        cc2);
+            assert (itcc != connectedComponents_.end ());
+            connectedComponents_.erase (itcc);
+        }
+        else {
+            ConnectedComponents_t::iterator itcc; 
+            if (cc1Tocc2) {
+                itcc = cc1->reachableTo_.end();
+                cc1->reachableTo_.splice (itcc, cc2->reachableTo_);
+                itcc = cc2->reachableFrom_.end();
+                cc2->reachableFrom_.splice (itcc, cc1->reachableFrom_);
+            }
+            if (cc2Tocc1) {
+                itcc = cc2->reachableTo_.end();
+                cc2->reachableTo_.splice (itcc, cc1->reachableTo_);
+                itcc = cc1->reachableFrom_.end();
+                cc1->reachableFrom_.splice (itcc, cc2->reachableFrom_);
+            }
+        }
+    }
+    bool Roadmap::pathExists () const
+    {
+      const ConnectedComponents_t reachableFromInit =
+	initNode ()->connectedComponent ()->reachableTo ();
+      for (Nodes_t::const_iterator itGoal = goalNodes ().begin ();
+	   itGoal != goalNodes ().end (); itGoal++) {
+	if (std::find (reachableFromInit.begin (), reachableFromInit.end (),
+		       (*itGoal)->connectedComponent ()) !=
+	    reachableFromInit.end ()) {
+	  return true;
+	}
+      }
+      return false;
+    }
   } //   namespace core
 } // namespace hpp
+
+std::ostream& operator<< (std::ostream& os, const hpp::core::Roadmap& r)
+{
+  using hpp::core::Nodes_t;
+  using hpp::core::NodePtr_t;
+  using hpp::core::Edges_t;
+  using hpp::core::EdgePtr_t;
+  using hpp::core::ConnectedComponents_t;
+  using hpp::core::ConnectedComponentPtr_t;
+  using hpp::core::size_type;
+
+  // Enumerate nodes and connected components
+  std::map <NodePtr_t, size_type> nodeId;
+  std::map <ConnectedComponentPtr_t, size_type> ccId;
+
+  size_type count = 0;
+  for (Nodes_t::const_iterator it = r.nodes ().begin ();
+       it != r.nodes ().end (); ++it) {
+    nodeId [*it] = count; ++count;
+  }
+
+  count = 0;
+  for (ConnectedComponents_t::const_iterator it =
+	 r.connectedComponents ().begin ();
+       it != r.connectedComponents ().end (); ++it) {
+    ccId [*it] = count; ++count;
+  }
+
+  // Display list of nodes
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  os << "Roadmap" << std::endl;
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  os << "Nodes" << std::endl;
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  for (Nodes_t::const_iterator it = r.nodes ().begin ();
+       it != r.nodes ().end (); ++it) {
+    const NodePtr_t node = *it;
+    os << "Node " << nodeId [node] << ": " << *node << std::endl;
+  }
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  os << "Edges" << std::endl;
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  for (Edges_t::const_iterator it = r.edges ().begin ();
+       it != r.edges ().end (); ++it) {
+    const EdgePtr_t edge = *it;
+    os << "Edge: " << nodeId [edge->from ()] << " -> "
+       << nodeId [edge->to ()] << std::endl;
+  }
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  os << "Connected components" << std::endl;
+  os << "----------------------------------------------------------------------"
+     << std::endl;
+  for (ConnectedComponents_t::const_iterator it =
+	 r.connectedComponents ().begin ();
+       it != r.connectedComponents ().end (); ++it) {
+    const ConnectedComponentPtr_t cc = *it;
+    os << "Connected component " << ccId [cc] << std::endl;
+    os << "Nodes : ";
+    for (Nodes_t::const_iterator itNode = cc->nodes ().begin ();
+	 itNode != cc->nodes ().end (); ++itNode) {
+      os << nodeId [*itNode] << ", ";
+    }
+    os << std::endl;
+    os << "Reachable to :";
+    for (ConnectedComponents_t::const_iterator itTo =
+	   cc->reachableTo ().begin (); itTo != cc->reachableTo ().end ();
+	 ++itTo) {
+      os << ccId [*itTo] << ", ";
+    }
+    os << std::endl;
+    os << "Reachable from :";
+    for (ConnectedComponents_t::const_iterator itFrom =
+	   cc->reachableFrom ().begin (); itFrom != cc->reachableFrom ().end ();
+	 ++itFrom) {
+      os << ccId [*itFrom] << ", ";
+    }
+    os << std::endl;
+  }
+  return os;
+}
+

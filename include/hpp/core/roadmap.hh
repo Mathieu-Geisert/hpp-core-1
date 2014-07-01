@@ -19,6 +19,7 @@
 #ifndef HPP_CORE_ROADMAP_HH
 # define HPP_CORE_ROADMAP_HH
 
+# include <iostream>
 # include <hpp/core/fwd.hh>
 # include <hpp/core/config.hh>
 # include <hpp/core/k-d-tree.hh>
@@ -73,6 +74,16 @@ namespace hpp {
       /// as goal node. Otherwise create a new node.
       void addGoalNode (const ConfigurationPtr_t& config);
 
+      /// Check and update reachability between two connected components
+      /// \param connectedComponent1: the first connected component 
+      /// \param connectedComponent2: the second connected component 
+      /// If both connected components are reachable to each other,
+      /// they are merged. Else, their respective reachability lists
+      /// are updated
+      void updateCCReachability(const ConnectedComponentPtr_t&
+              connectedComponent1, const ConnectedComponentPtr_t&
+              connectedComponent2);
+
       void resetGoalNodes ()
       {
 	goalNodes_.clear ();
@@ -84,8 +95,8 @@ namespace hpp {
       }
 
       virtual ~Roadmap ();
-      /// Find a path between initial and goal configurations
-      PathPtr_t findPath () const;
+      /// Check that a path exists between the initial node and one goal node.
+      bool pathExists () const;
       const Nodes_t& nodes () const
       {
 	return nodes_;
@@ -152,4 +163,5 @@ namespace hpp {
     }; // class Roadmap
   } //   namespace core
 } // namespace hpp
+std::ostream& operator<< (std::ostream& os, const hpp::core::Roadmap& r);
 #endif // HPP_CORE_ROADMAP_HH

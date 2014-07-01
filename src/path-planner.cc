@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 # include <hpp/util/debug.hh>
+#include <hpp/core/connected-component.hh>
 #include <hpp/core/path-planner.hh>
 #include <hpp/core/roadmap.hh>
 #include <hpp/core/problem.hh>
@@ -42,6 +43,11 @@ namespace hpp {
       problem_ (problem), roadmap_ (roadmap),
       interrupt_ (false)
     {
+    }
+
+    void PathPlanner::init (const PathPlannerWkPtr_t& weak)
+    {
+      weakPtr_ = weak;
     }
 
     const RoadmapPtr_t& PathPlanner::roadmap () const
@@ -73,14 +79,14 @@ namespace hpp {
       bool solved = false;
       startSolve ();
       tryDirectPath ();
-      solved = pathExists ();
+      solved = roadmap_->pathExists ();
       if (solved ) {
 	hppDout (info, "tryDirectPath succeeded");
       }
       if (interrupt_) throw std::runtime_error ("Interruption");
       while (!solved) {
 	oneStep ();
-	solved = pathExists ();
+	solved = roadmap_->pathExists ();
 	if (interrupt_) throw std::runtime_error ("Interruption");
       }
       PathVectorPtr_t planned =  computePath ();
@@ -91,18 +97,6 @@ namespace hpp {
     void PathPlanner::interrupt ()
     {
       interrupt_ = true;
-    }
-
-    bool PathPlanner::pathExists () const
-    {
-      for (Nodes_t::const_iterator itGoal = roadmap_->goalNodes ().begin ();
-	   itGoal != roadmap_->goalNodes ().end (); itGoal++) {
-	if ((*itGoal)->connectedComponent () ==
-	    roadmap_->initNode ()->connectedComponent ()) {
-	  return true;
-	}
-      }
-      return false;
     }
 
     PathVectorPtr_t PathPlanner::computePath () const

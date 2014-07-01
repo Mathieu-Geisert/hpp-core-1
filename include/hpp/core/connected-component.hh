@@ -30,13 +30,27 @@ namespace hpp {
     /// Set of nodes reachable from one another.
     class HPP_CORE_DLLAPI ConnectedComponent {
     public:
+      // List of nodes within the connected component
       typedef std::list <NodePtr_t> Nodes_t;
+
+      /// Create connected component and return shared pointer
       static ConnectedComponentPtr_t create ()
       {
 	ConnectedComponent* ptr = new ConnectedComponent ();
 	ConnectedComponentPtr_t shPtr (ptr);
 	ptr->init (shPtr);
 	return shPtr;
+      }
+
+      /// Get list of connected component reachable from this one
+      const ConnectedComponents_t& reachableTo () const
+      {
+	return reachableTo_;
+      }
+      /// Get list of connected components that can reach this one
+      const ConnectedComponents_t& reachableFrom () const
+      {
+	return reachableFrom_;
       }
       /// Merge two connected components.
       ///
@@ -71,8 +85,16 @@ namespace hpp {
 	weak_ = shPtr;
       }
     private:
+      // List of nodes
        Nodes_t nodes_;
-       ConnectedComponentWkPtr_t weak_;
+      // List of connected components that can be reached from this connected
+      // component
+      ConnectedComponents_t reachableTo_;
+      // List of connected components from which this connected component can
+      // be reached
+      ConnectedComponents_t reachableFrom_;
+      ConnectedComponentWkPtr_t weak_;
+      friend class Roadmap;
     }; // class ConnectedComponent
   } //   namespace core
 } // namespace hpp

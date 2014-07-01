@@ -28,10 +28,6 @@
 namespace hpp {
   namespace core {
     /// Abstraction of paths: mapping from time to configuration space
-    ///
-    /// This class derives from roboptim::Trajectory as such Path could be
-    /// used for numerical optimization. For that some unimplemented methods
-    /// should be implemented.
     class HPP_CORE_DLLAPI Path
     {
     public:
@@ -65,6 +61,11 @@ namespace hpp {
       /// If upper bound of subInterval is smaller than lower bound,
       /// result is reversed.
       virtual PathPtr_t extract (const interval_t& subInterval) const;
+
+      /// Reversion of a path
+      /// \return a new path that is this one reversed.
+      virtual PathPtr_t reverse () const;
+
       /// \}
 
       Configuration_t operator () (const value_type& t) const throw ()
